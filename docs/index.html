@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#06101f">
+  <meta name="description" content="Netlet 是一款纯本地运行的 macOS 菜单栏实时网速工具。">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Netlet — 实时网速，一眼即知">
+  <meta property="og:description" content="在菜单栏直接查看上传与下载速度。轻量、清楚、完全本地运行。">
+  <meta property="og:image" content="assets/app-icon.png">
+  <title>Netlet — 实时网速，一眼即知</title>
+  <link rel="icon" href="assets/app-icon.png?v=1.4" type="image/png">
+  <link rel="apple-touch-icon" href="assets/app-icon.png?v=1.4">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="#top" aria-label="Netlet 首页">
+      <img src="assets/app-icon.png" alt="" width="38" height="38">
+      <span>Netlet</span>
+    </a>
+    <nav aria-label="主导航">
+      <a href="#experience">功能</a>
+      <a href="#install">安装</a>
+      <a href="#local">本地运行</a>
+      <a class="nav-github" href="https://github.com/hjingsuper/Netlet">GitHub</a>
+    </nav>
+  </header>
+
+  <main id="top">
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="hero-copy">
+        <p class="eyebrow"><span></span> macOS 菜单栏实时网速</p>
+        <h1 id="hero-title">实时网速，<br><em>一眼即知。</em></h1>
+        <p class="hero-lead">在菜单栏直接查看上传与下载速度。每秒更新、单位稳定切换，简单、轻量、完全本地运行。</p>
+        <div class="hero-actions">
+          <a class="button button-primary" href="https://github.com/hjingsuper/Netlet/releases/download/v1.4/Netlet-v1.4-Apple-Silicon.dmg">下载 Apple 芯片版</a>
+          <a class="button button-secondary" href="https://github.com/hjingsuper/Netlet">查看源代码</a>
+        </div>
+        <div class="hero-meta" aria-label="版本与系统要求">
+          <span>v1.4</span>
+          <span>macOS 14+</span>
+          <span>Apple Silicon</span>
+          <span>免费开源</span>
+        </div>
+      </div>
+
+      <div class="hero-product" aria-label="Netlet 菜单栏与弹层界面">
+        <div class="menu-bar-sample" aria-hidden="true">
+          <div class="traffic-title"><span>↓ 3.01 KB/s</span><span>↑ 9.02 KB/s</span></div>
+          <div class="system-time">周六 16:42</div>
+        </div>
+        <figure class="menu-shot">
+          <img src="assets/netlet-menu.png" alt="Netlet 菜单弹层，显示下载、上传速度和当前网络接口" width="640" height="442">
+        </figure>
+        <div class="flow-lines" aria-hidden="true">
+          <svg viewBox="0 0 680 220" role="presentation">
+            <path class="flow flow-down" d="M4 78 C90 28 140 132 222 78 S360 34 446 92 S575 154 676 74"/>
+            <path class="flow flow-up" d="M4 136 C98 192 146 82 238 138 S380 188 462 130 S572 74 676 140"/>
+            <path class="flow-guide" d="M4 108 C90 64 152 160 236 112 S382 74 462 112 S584 152 676 110"/>
+          </svg>
+        </div>
+      </div>
+    </section>
+
+    <section class="signal-bar" aria-label="产品特点">
+      <span><b>1 秒</b>固定刷新</span>
+      <span><b>2 种</b>速度单位</span>
+      <span><b>4 种</b>菜单栏样式</span>
+      <span><b>0</b>数据上传</span>
+    </section>
+
+    <section class="experience" id="experience" aria-labelledby="experience-title">
+      <div class="section-heading">
+        <p class="eyebrow"><span></span> Less noise, more signal</p>
+        <h2 id="experience-title">只做网速，<br>每一眼都清楚。</h2>
+        <p>Netlet 不分析流量内容，也不堆叠无关功能。你看到的，就是当前 Mac 的实时上传与下载速度。</p>
+      </div>
+
+      <div class="feature-story">
+        <article class="feature-row feature-traffic">
+          <div class="feature-copy">
+            <span class="feature-index">01</span>
+            <h3>下载与上传，每秒可见</h3>
+            <p>直接留在菜单栏，不需要打开窗口。完整、紧凑、仅下载、仅上传四种显示方式，按你的桌面空间选择。</p>
+          </div>
+          <div class="traffic-visual" aria-hidden="true">
+            <div class="traffic-label download"><span>↓</span><strong>3.01</strong><small>KB/s</small></div>
+            <div class="traffic-label upload"><span>↑</span><strong>9.02</strong><small>KB/s</small></div>
+            <svg viewBox="0 0 600 180" role="presentation">
+              <path class="chart-line download-line" d="M0 105 C52 84 69 118 120 88 S204 36 254 79 S340 140 399 92 S496 42 600 76"/>
+              <path class="chart-line upload-line" d="M0 135 C55 155 92 105 145 129 S234 164 285 125 S376 75 432 119 S522 158 600 114"/>
+            </svg>
+          </div>
+        </article>
+
+        <article class="feature-row feature-units">
+          <div class="unit-scale" aria-hidden="true">
+            <span>532 B/s</span><i>→</i><span>12.4 KB/s</span><i>→</i><span>1.3 MB/s</span>
+          </div>
+          <div class="feature-copy">
+            <span class="feature-index">02</span>
+            <h3>单位自动换算，也足够稳定</h3>
+            <p>支持字节/秒与比特/秒，并自动在 B、KB、MB 或 bit、Kbit、Mbit 之间换算。切换迟滞避免临界网速下反复跳动。</p>
+          </div>
+        </article>
+
+        <article class="feature-row feature-interface">
+          <div class="feature-copy">
+            <span class="feature-index">03</span>
+            <h3>当前网络接口，一目了然</h3>
+            <p>自动识别正在使用的 Wi‑Fi、以太网或 VPN 接口；需要时也可以在偏好设置中手动指定。</p>
+          </div>
+          <div class="interface-visual" aria-hidden="true">
+            <div><span class="interface-dot active"></span><strong>当前连接</strong><small>VPN (utun5)</small></div>
+            <div><span class="interface-dot"></span><strong>Wi‑Fi</strong><small>en0</small></div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="product" aria-labelledby="product-title">
+      <div class="product-copy">
+        <p class="eyebrow"><span></span> Native for macOS</p>
+        <h2 id="product-title">轻量设置，<br>不打扰工作。</h2>
+        <p>原生 SwiftUI 界面，把所有选项放在一个窗口里。调整显示、单位、小数位和网络接口后，变化立即同步到菜单栏。</p>
+      </div>
+      <figure class="settings-stage">
+        <img src="assets/netlet-settings.png" alt="Netlet 偏好设置界面" width="820" height="512">
+      </figure>
+    </section>
+
+    <section class="install" id="install" aria-labelledby="install-title">
+      <div class="install-copy">
+        <p class="eyebrow"><span></span> 安装指南</p>
+        <h2 id="install-title">三步安装，<br>即刻开始。</h2>
+        <p>Netlet 暂无 Apple Developer ID 证书，因此首次打开需要在系统设置中手动允许。这是免费开源项目当前的分发方式，不影响软件在本机运行。</p>
+      </div>
+
+      <ol class="install-steps">
+        <li><span class="step-number">01</span><div><h3>下载 DMG</h3><p>下载适用于 Apple Silicon 的 Netlet v1.4。</p></div></li>
+        <li><span class="step-number">02</span><div><h3>拖入“应用程序”</h3><p>打开 DMG，将 Netlet 拖到“应用程序”文件夹。</p></div></li>
+        <li><span class="step-number">03</span><div><h3>允许首次打开</h3><p>若被系统阻止，在“隐私与安全性”中点击“仍要打开”。</p></div></li>
+      </ol>
+
+      <aside class="system-note">
+        <strong>系统要求</strong>
+        <p>macOS 14 或更高版本，Apple Silicon（M1 或更新芯片）。</p>
+      </aside>
+    </section>
+
+    <section class="local-first" id="local" aria-labelledby="local-title">
+      <div class="local-copy">
+        <p class="eyebrow"><span></span> Local first</p>
+        <h2 id="local-title">你的流量，<br>只属于你的 Mac。</h2>
+      </div>
+      <div class="local-details">
+        <p>Netlet 只读取 macOS 提供的网络接口累计字节数，并在本机计算速度。它不检查网络内容，不需要账户，也不收集或上传任何数据。</p>
+        <p class="local-footnote">只有在你检查软件更新时，应用才会连接 GitHub Releases。</p>
+      </div>
+    </section>
+
+    <section class="open-source" aria-labelledby="open-title">
+      <div class="release-card">
+        <p class="eyebrow light"><span></span> Open source</p>
+        <h2 id="open-title">免费、开放，<br>保持专注。</h2>
+        <p>源代码公开于 GitHub。没有广告、订阅或隐藏服务，只有一个清楚可靠的菜单栏网速工具。</p>
+        <div class="release-actions">
+          <a class="button button-light" href="https://github.com/hjingsuper/Netlet/releases/download/v1.4/Netlet-v1.4-Apple-Silicon.dmg">下载 v1.4</a>
+          <a class="text-link" href="https://github.com/hjingsuper/Netlet">在 GitHub 查看项目</a>
+        </div>
+      </div>
+      <aside class="declaration">
+        <span>使用声明</span>
+        <p>本软件为免费开源项目，仅供交流学习与个人使用。请遵守相关法律法规与开源协议，勿用于任何商业或非法用途。</p>
+      </aside>
+    </section>
+  </main>
+
+  <footer>
+    <a class="brand footer-brand" href="#top">
+      <img src="assets/app-icon.png" alt="" width="32" height="32">
+      <span>Netlet</span>
+    </a>
+    <div class="footer-links">
+      <a href="https://github.com/hjingsuper/Netlet">GitHub</a>
+      <a href="https://github.com/hjingsuper/Netlet/releases">Releases</a>
+      <a href="https://github.com/hjingsuper/Netlet/blob/main/LICENSE">MIT License</a>
+      <span>© 2026 hjingsuper</span>
+    </div>
+  </footer>
+</body>
+</html>
