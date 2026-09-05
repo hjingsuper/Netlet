@@ -7,6 +7,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     init(
         monitor: NetworkSpeedMonitor,
         preferences: PreferencesStore,
+        historyStore: TrafficHistoryStore,
         languageStore: LanguageStore,
         updatesAvailable: Bool,
         openSettings: @escaping () -> Void,
@@ -14,6 +15,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     ) {
         self.monitor = monitor
         self.preferences = preferences
+        self.historyStore = historyStore
         self.languageStore = languageStore
         self.updatesAvailable = updatesAvailable
         self.openSettings = openSettings
@@ -28,6 +30,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
     private let monitor: NetworkSpeedMonitor
     private let preferences: PreferencesStore
+    private let historyStore: TrafficHistoryStore
     private let languageStore: LanguageStore
     private let updatesAvailable: Bool
     private let openSettings: () -> Void
@@ -109,6 +112,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         let speedView = SpeedMenuView(
             monitor: monitor,
             preferences: preferences,
+            historyStore: historyStore,
             languageStore: languageStore
         )
         let speedItem = NSMenuItem()

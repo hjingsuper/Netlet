@@ -91,7 +91,11 @@ private final class NetworkPollEngine: @unchecked Sendable {
                 uploadBytesPerSecond: rates.upload,
                 interfaceName: interfaceName,
                 state: .connected,
-                sampledAt: .now
+                sampledAt: .now,
+                isRateSampleValid: rates.isValid,
+                downloadBytesDelta: rates.downloadBytesDelta,
+                uploadBytesDelta: rates.uploadBytesDelta,
+                sampleDuration: rates.duration
             ),
             interfaceSnapshot.interfaces
         )
@@ -153,6 +157,11 @@ final class NetworkSpeedMonitor: NSObject {
     func reconfigure(_ configuration: NetworkMonitorConfiguration) {
         self.configuration = configuration
         start(configuration: configuration)
+    }
+
+    func stop() {
+        generation &+= 1
+        engine.stop()
     }
 
     func resetBaseline() {

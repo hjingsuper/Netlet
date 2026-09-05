@@ -1,11 +1,13 @@
+import Charts
 import SwiftUI
 
 struct SpeedMenuView: View {
     static let preferredWidth: CGFloat = 320
-    static let preferredHeight: CGFloat = 92
+    static let preferredHeight: CGFloat = 150
 
     let monitor: NetworkSpeedMonitor
     let preferences: PreferencesStore
+    let historyStore: TrafficHistoryStore
     let languageStore: LanguageStore
 
     var body: some View {
@@ -45,10 +47,108 @@ struct SpeedMenuView: View {
 
                 Spacer(minLength: 0)
             }
+
+            Divider()
+
+            oneHourHistory
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 8)
         .frame(width: Self.preferredWidth, height: Self.preferredHeight)
+    }
+
+    private var oneHourHistory: some View {
+        let records = historyStore.recentRecords(for: .oneHour)
+        let segments = TrafficHistoryDownsampler.segments(
+            from: records,
+            maximumPointCount: 120
+        )
+        let maximum = max(
+            1,
+            records.reduce(0) {
+                max(
+                    $0,
+                    $1.averageDownloadBytesPerSecond,
+                    $1.averageUploadBytesPerSecond
+                )
+            }
+        )
+
+        return VStack(spacing: 3) {
+            HStack(spacing: 8) {
+                Text(languageStore[.lastHourTrend])
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(.secondary)
+
+                Spacer(minLength: 0)
+
+                historyLegend(color: .blue, title: languageStore[.download])
+                historyLegend(color: .green, title: languageStore[.upload])
+            }
+
+            if records.isEmpty {
+                Text(languageStore[.noHistoryData])
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+                    .frame(maxWidth: .infinity, minHeight: 31)
+            } else {
+                Chart {
+                    ForEach(Array(segments.enumerated()), id: \.offset) { segmentIndex, segment in
+                        ForEach(segment) { record in
+                            LineMark(
+                                x: .value("Time", record.timestamp),
+                                y: .value("Download", record.averageDownloadBytesPerSecond),
+                                series: .value("Download segment", "download-\(segmentIndex)")
+                            )
+                            .foregroundStyle(Color.blue)
+                            .lineStyle(StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
+
+                            LineMark(
+                                x: .value("Time", record.timestamp),
+                                y: .value("Upload", record.averageUploadBytesPerSecond),
+                                series: .value("Upload segment", "upload-\(segmentIndex)")
+                            )
+                            .foregroundStyle(Color.green)
+                            .lineStyle(StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
+                        }
+
+                        if let onlyRecord = segment.count == 1 ? segment.first : nil {
+                            PointMark(
+                                x: .value("Time", onlyRecord.timestamp),
+                                y: .value("Download", onlyRecord.averageDownloadBytesPerSecond)
+                            )
+                            .foregroundStyle(Color.blue)
+                            .symbolSize(12)
+                            PointMark(
+                                x: .value("Time", onlyRecord.timestamp),
+                                y: .value("Upload", onlyRecord.averageUploadBytesPerSecond)
+                            )
+                            .foregroundStyle(Color.green)
+                            .symbolSize(12)
+                        }
+                    }
+                }
+                .chartLegend(.hidden)
+                .chartXAxis(.hidden)
+                .chartYAxis(.hidden)
+                .chartXScale(
+                    domain: Date.now.addingTimeInterval(-TrafficHistoryRange.oneHour.duration)...Date.now
+                )
+                .chartYScale(domain: 0...(maximum * 1.08))
+                .frame(height: 31)
+            }
+        }
+    }
+
+    private func historyLegend(color: Color, title: String) -> some View {
+        HStack(spacing: 3) {
+            Circle()
+                .fill(color)
+                .frame(width: 5, height: 5)
+            Text(title)
+        }
+        .font(.caption2)
+        .foregroundStyle(.secondary)
     }
 
     private func speedColumn(

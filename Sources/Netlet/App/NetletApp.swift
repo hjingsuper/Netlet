@@ -10,11 +10,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     )
     private var monitor: NetworkSpeedMonitor?
     private var preferences: PreferencesStore?
+    private var historyStore: TrafficHistoryStore?
     private var languageStore: LanguageStore?
     private var launchAtLoginManager: LaunchAtLoginManager?
     private var updateManager: UpdateManager?
     private var statusBarController: StatusBarController?
     private var windowController: NSWindowController?
+    private var isFinishingTermination = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -22,11 +24,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let preferences = PreferencesStore()
         let languageStore = LanguageStore()
         let monitor = NetworkSpeedMonitor()
+        let historyStore = TrafficHistoryStore()
         let launchAtLoginManager = LaunchAtLoginManager()
         let updateManager = UpdateManager()
         let statusBarController = StatusBarController(
             monitor: monitor,
             preferences: preferences,
+            historyStore: historyStore,
             languageStore: languageStore,
             updatesAvailable: updateManager.isAvailable,
             openSettings: { [weak self] in self?.showSettings() },
@@ -36,6 +40,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.preferences = preferences
         self.languageStore = languageStore
         self.monitor = monitor
+        self.historyStore = historyStore
         self.launchAtLoginManager = launchAtLoginManager
         self.updateManager = updateManager
         self.statusBarController = statusBarController
@@ -53,10 +58,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         languageStore.onChange = { [weak statusBarController] in
             statusBarController?.languageDidChange()
         }
-        monitor.onUpdate = { [weak statusBarController] in
+        monitor.onUpdate = { [weak statusBarController, weak historyStore, weak monitor] in
             statusBarController?.updateSnapshot()
+            if let snapshot = monitor?.snapshot {
+                historyStore?.ingest(snapshot)
+            }
         }
 
+        historyStore.start()
         monitor.start(configuration: preferences.monitorConfiguration)
         updateManager.start()
         logger.notice("Netlet services are ready")
@@ -80,10 +89,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         false
     }
 
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard !isFinishingTermination, let historyStore else {
+            return .terminateNow
+        }
+
+        isFinishingTermination = true
+        monitor?.stop()
+        Task {
+            await historyStore.flush()
+            sender.reply(toApplicationShouldTerminate: true)
+        }
+        return .terminateLater
+    }
+
     private func showSettings() {
         guard
             let monitor,
             let preferences,
+            let historyStore,
             let languageStore,
             let launchAtLoginManager,
             let updateManager
@@ -93,6 +117,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let rootView = SettingsView(
                 monitor: monitor,
                 preferences: preferences,
+                historyStore: historyStore,
                 languageStore: languageStore,
                 launchAtLoginManager: launchAtLoginManager,
                 updateManager: updateManager
@@ -101,8 +126,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let window = NSWindow(contentViewController: hostingController)
             window.title = "Netlet"
             window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
-            window.setContentSize(NSSize(width: 820, height: 480))
-            window.contentMinSize = NSSize(width: 760, height: 460)
+            window.setContentSize(NSSize(width: 920, height: 720))
+            window.contentMinSize = NSSize(width: 860, height: 700)
             window.isReleasedWhenClosed = false
             window.center()
             windowController = NSWindowController(window: window)

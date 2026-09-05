@@ -23,6 +23,32 @@ struct NetworkSpeedSnapshot: Equatable, Sendable {
     let interfaceName: String?
     let state: NetworkMonitorState
     let sampledAt: Date
+    let isRateSampleValid: Bool
+    let downloadBytesDelta: UInt64
+    let uploadBytesDelta: UInt64
+    let sampleDuration: TimeInterval
+
+    init(
+        downloadBytesPerSecond: Double,
+        uploadBytesPerSecond: Double,
+        interfaceName: String?,
+        state: NetworkMonitorState,
+        sampledAt: Date,
+        isRateSampleValid: Bool = false,
+        downloadBytesDelta: UInt64 = 0,
+        uploadBytesDelta: UInt64 = 0,
+        sampleDuration: TimeInterval = 0
+    ) {
+        self.downloadBytesPerSecond = downloadBytesPerSecond
+        self.uploadBytesPerSecond = uploadBytesPerSecond
+        self.interfaceName = interfaceName
+        self.state = state
+        self.sampledAt = sampledAt
+        self.isRateSampleValid = isRateSampleValid
+        self.downloadBytesDelta = downloadBytesDelta
+        self.uploadBytesDelta = uploadBytesDelta
+        self.sampleDuration = sampleDuration
+    }
 
     static let initial = NetworkSpeedSnapshot(
         downloadBytesPerSecond: 0,
@@ -30,6 +56,24 @@ struct NetworkSpeedSnapshot: Equatable, Sendable {
         interfaceName: nil,
         state: .unavailable,
         sampledAt: .now
+    )
+}
+
+struct NetworkRateSample: Equatable, Sendable {
+    let download: Double
+    let upload: Double
+    let downloadBytesDelta: UInt64
+    let uploadBytesDelta: UInt64
+    let duration: TimeInterval
+    let isValid: Bool
+
+    static let invalid = NetworkRateSample(
+        download: 0,
+        upload: 0,
+        downloadBytesDelta: 0,
+        uploadBytesDelta: 0,
+        duration: 0,
+        isValid: false
     )
 }
 
@@ -53,7 +97,7 @@ struct SpeedSampleCalculator: Sendable {
         interfaceName: String,
         counters: InterfaceByteCounters,
         uptimeNanoseconds: UInt64
-    ) -> (download: Double, upload: Double) {
+    ) -> NetworkRateSample {
         defer {
             previousInterface = interfaceName
             previousCounters = counters
@@ -68,15 +112,22 @@ struct SpeedSampleCalculator: Sendable {
             counters.received >= previousCounters.received,
             counters.sent >= previousCounters.sent
         else {
-            return (0, 0)
+            return .invalid
         }
 
         let elapsed = Double(uptimeNanoseconds - previousUptimeNanoseconds) / 1_000_000_000
-        guard elapsed > 0 else { return (0, 0) }
+        guard elapsed > 0 else { return .invalid }
 
-        return (
-            Double(counters.received - previousCounters.received) / elapsed,
-            Double(counters.sent - previousCounters.sent) / elapsed
+        let downloadBytesDelta = counters.received - previousCounters.received
+        let uploadBytesDelta = counters.sent - previousCounters.sent
+
+        return NetworkRateSample(
+            download: Double(downloadBytesDelta) / elapsed,
+            upload: Double(uploadBytesDelta) / elapsed,
+            downloadBytesDelta: downloadBytesDelta,
+            uploadBytesDelta: uploadBytesDelta,
+            duration: elapsed,
+            isValid: true
         )
     }
 }

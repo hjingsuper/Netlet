@@ -13,6 +13,7 @@ final class NetletTests: XCTestCase {
 
         XCTAssertEqual(result.download, 0)
         XCTAssertEqual(result.upload, 0)
+        XCTAssertFalse(result.isValid)
     }
 
     func testCounterDeltasAreConvertedToRatesUsingMonotonicTime() {
@@ -30,6 +31,10 @@ final class NetletTests: XCTestCase {
 
         XCTAssertEqual(result.download, 2_048, accuracy: 0.001)
         XCTAssertEqual(result.upload, 1_024, accuracy: 0.001)
+        XCTAssertEqual(result.downloadBytesDelta, 4_096)
+        XCTAssertEqual(result.uploadBytesDelta, 2_048)
+        XCTAssertEqual(result.duration, 2, accuracy: 0.001)
+        XCTAssertTrue(result.isValid)
     }
 
     func testChangingInterfaceResetsTheBaseline() {
@@ -47,6 +52,7 @@ final class NetletTests: XCTestCase {
 
         XCTAssertEqual(result.download, 0)
         XCTAssertEqual(result.upload, 0)
+        XCTAssertFalse(result.isValid)
     }
 
     func testCounterRollbackResetsInsteadOfUnderflowing() {
@@ -64,6 +70,7 @@ final class NetletTests: XCTestCase {
 
         XCTAssertEqual(result.download, 0)
         XCTAssertEqual(result.upload, 0)
+        XCTAssertFalse(result.isValid)
     }
 
     func testByteFormattingUsesBinaryScaling() {
@@ -207,6 +214,340 @@ final class NetletTests: XCTestCase {
         )
     }
 
+    func testMinuteAccumulatorUsesByteDeltasAndTracksPeaks() throws {
+        let start = Date(timeIntervalSince1970: 10_800)
+        var accumulator = MinuteTrafficAccumulator()
+
+        XCTAssertNil(
+            accumulator.consume(
+                historySnapshot(
+                    at: start.addingTimeInterval(1),
+                    downloadRate: 100,
+                    uploadRate: 40,
+                    downloadBytes: 100,
+                    uploadBytes: 40,
+                    duration: 1
+                )
+            )
+        )
+        XCTAssertNil(
+            accumulator.consume(
+                historySnapshot(
+                    at: start.addingTimeInterval(3),
+                    downloadRate: 250,
+                    uploadRate: 80,
+                    downloadBytes: 500,
+                    uploadBytes: 160,
+                    duration: 2
+                )
+            )
+        )
+
+        let completed = try XCTUnwrap(
+            accumulator.consume(
+                NetworkSpeedSnapshot(
+                    downloadBytesPerSecond: 0,
+                    uploadBytesPerSecond: 0,
+                    interfaceName: nil,
+                    state: .unavailable,
+                    sampledAt: start.addingTimeInterval(60)
+                )
+            )
+        )
+
+        XCTAssertEqual(completed.timestamp, start)
+        XCTAssertEqual(completed.sampleCount, 2)
+        XCTAssertEqual(completed.downloadBytes, 600)
+        XCTAssertEqual(completed.uploadBytes, 200)
+        XCTAssertEqual(completed.averageDownloadBytesPerSecond, 200, accuracy: 0.001)
+        XCTAssertEqual(completed.averageUploadBytesPerSecond, 200.0 / 3.0, accuracy: 0.001)
+        XCTAssertEqual(completed.peakDownloadBytesPerSecond, 250)
+        XCTAssertEqual(completed.peakUploadBytesPerSecond, 80)
+    }
+
+    func testPartialMinuteRecordsMergeWithoutLosingEarlierSessionData() {
+        let minute = Date(timeIntervalSince1970: 10_800)
+        let first = TrafficMinuteRecord(
+            timestamp: minute,
+            averageDownloadBytesPerSecond: 100,
+            averageUploadBytesPerSecond: 50,
+            peakDownloadBytesPerSecond: 150,
+            peakUploadBytesPerSecond: 60,
+            sampleCount: 20,
+            downloadBytes: 2_000,
+            uploadBytes: 1_000
+        )
+        let second = TrafficMinuteRecord(
+            timestamp: minute,
+            averageDownloadBytesPerSecond: 300,
+            averageUploadBytesPerSecond: 150,
+            peakDownloadBytesPerSecond: 400,
+            peakUploadBytesPerSecond: 180,
+            sampleCount: 40,
+            downloadBytes: 12_000,
+            uploadBytes: 6_000
+        )
+
+        let merged = first.merging(second)
+
+        XCTAssertEqual(merged.sampleCount, 60)
+        XCTAssertEqual(merged.downloadBytes, 14_000)
+        XCTAssertEqual(merged.uploadBytes, 7_000)
+        XCTAssertEqual(merged.averageDownloadBytesPerSecond, 700.0 / 3.0, accuracy: 0.001)
+        XCTAssertEqual(merged.averageUploadBytesPerSecond, 350.0 / 3.0, accuracy: 0.001)
+        XCTAssertEqual(merged.peakDownloadBytesPerSecond, 400)
+        XCTAssertEqual(merged.peakUploadBytesPerSecond, 180)
+    }
+
+    func testInvalidAndMissingSamplesDoNotCreateZeroHistory() {
+        let start = Date(timeIntervalSince1970: 20_000)
+        var accumulator = MinuteTrafficAccumulator()
+
+        XCTAssertNil(
+            accumulator.consume(
+                NetworkSpeedSnapshot(
+                    downloadBytesPerSecond: 0,
+                    uploadBytesPerSecond: 0,
+                    interfaceName: "en0",
+                    state: .connected,
+                    sampledAt: start,
+                    isRateSampleValid: false
+                )
+            )
+        )
+        XCTAssertNil(
+            accumulator.consume(
+                NetworkSpeedSnapshot(
+                    downloadBytesPerSecond: 0,
+                    uploadBytesPerSecond: 0,
+                    interfaceName: nil,
+                    state: .unavailable,
+                    sampledAt: start.addingTimeInterval(120)
+                )
+            )
+        )
+        XCTAssertNil(accumulator.finish())
+    }
+
+    func testResetAndInterfaceSwitchCannotProduceFalseSpike() {
+        var calculator = SpeedSampleCalculator()
+        _ = calculator.record(
+            interfaceName: "en0",
+            counters: InterfaceByteCounters(received: 1_000, sent: 1_000),
+            uptimeNanoseconds: 1_000_000_000
+        )
+        calculator.reset()
+
+        let afterWake = calculator.record(
+            interfaceName: "en0",
+            counters: InterfaceByteCounters(received: 9_000_000, sent: 8_000_000),
+            uptimeNanoseconds: 9_000_000_000
+        )
+        let afterInterfaceSwitch = calculator.record(
+            interfaceName: "utun4",
+            counters: InterfaceByteCounters(received: 90_000_000, sent: 80_000_000),
+            uptimeNanoseconds: 10_000_000_000
+        )
+
+        XCTAssertFalse(afterWake.isValid)
+        XCTAssertFalse(afterInterfaceSwitch.isValid)
+        XCTAssertEqual(afterWake.downloadBytesDelta, 0)
+        XCTAssertEqual(afterInterfaceSwitch.downloadBytesDelta, 0)
+    }
+
+    func testDownsamplerPreservesGapsAndPointBudget() throws {
+        let start = Date(timeIntervalSince1970: 30_000)
+        let firstSegment = (0..<20).map {
+            historyRecord(at: start.addingTimeInterval(TimeInterval($0 * 60)))
+        }
+        let secondStart = start.addingTimeInterval(40 * 60)
+        let secondSegment = (0..<20).map {
+            historyRecord(at: secondStart.addingTimeInterval(TimeInterval($0 * 60)))
+        }
+
+        let segments = TrafficHistoryDownsampler.segments(
+            from: firstSegment + secondSegment,
+            maximumPointCount: 12
+        )
+
+        XCTAssertEqual(segments.count, 2)
+        XCTAssertLessThanOrEqual(segments.flatMap { $0 }.count, 12)
+        XCTAssertGreaterThan(
+            try XCTUnwrap(segments.last?.first?.timestamp).timeIntervalSince(
+                try XCTUnwrap(segments.first?.last?.timestamp)
+            ),
+            90
+        )
+    }
+
+    func testHistorySelectionFindsNearestRecordWithBinarySearch() throws {
+        let start = Date(timeIntervalSince1970: 30_000)
+        let records = (0..<4).map {
+            historyRecord(at: start.addingTimeInterval(TimeInterval($0 * 60)))
+        }
+
+        XCTAssertEqual(
+            TrafficHistorySelection.nearest(
+                to: start.addingTimeInterval(-60),
+                in: records
+            ),
+            records.first
+        )
+        XCTAssertEqual(
+            TrafficHistorySelection.nearest(
+                to: start.addingTimeInterval(95),
+                in: records
+            ),
+            records[2]
+        )
+        XCTAssertEqual(
+            TrafficHistorySelection.nearest(
+                to: start.addingTimeInterval(10 * 60),
+                in: records
+            ),
+            records.last
+        )
+        XCTAssertNil(TrafficHistorySelection.nearest(to: start, in: []))
+    }
+
+    func testHistoryDatabaseMigratesAnEmptyDatabase() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let url = directory.appendingPathComponent("history.sqlite")
+        XCTAssertTrue(FileManager.default.createFile(atPath: url.path, contents: Data()))
+
+        let database = try TrafficHistoryDatabase(url: url)
+        let version = try await database.schemaVersion()
+        let records = try await database.records(since: .distantPast, through: .distantFuture)
+
+        XCTAssertEqual(version, 1)
+        XCTAssertTrue(records.isEmpty)
+    }
+
+    func testHistoryDatabaseQuarantinesCorruptFileAndRebuilds() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let url = directory.appendingPathComponent("history.sqlite")
+        try Data("not a sqlite database".utf8).write(to: url)
+
+        let database = try TrafficHistoryDatabase(url: url)
+        let quarantinedFiles = try FileManager.default.contentsOfDirectory(
+            atPath: directory.path
+        ).filter { $0.hasPrefix("history.sqlite.corrupt-") }
+        let version = try await database.schemaVersion()
+
+        XCTAssertEqual(version, 1)
+        XCTAssertEqual(quarantinedFiles.count, 1)
+    }
+
+    func testHistoryDatabasePrunesRecordsOlderThanSevenDays() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let database = try TrafficHistoryDatabase(
+            url: directory.appendingPathComponent("history.sqlite")
+        )
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let expired = historyRecord(
+            at: now.addingTimeInterval(-TrafficHistoryDatabase.retentionDuration - 60)
+        )
+        let retained = historyRecord(at: now.addingTimeInterval(-3_600))
+
+        try await database.upsertAndPrune(expired, now: now)
+        try await database.upsertAndPrune(retained, now: now)
+        let records = try await database.records(
+            since: now.addingTimeInterval(-8 * 24 * 60 * 60),
+            through: now
+        )
+
+        XCTAssertEqual(records, [retained])
+    }
+
+    func testHistoryDatabaseMergesPartialWritesForTheSameMinute() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let database = try TrafficHistoryDatabase(
+            url: directory.appendingPathComponent("history.sqlite")
+        )
+        let minute = Date(timeIntervalSince1970: 1_800_000_000)
+        let first = TrafficMinuteRecord(
+            timestamp: minute,
+            averageDownloadBytesPerSecond: 100,
+            averageUploadBytesPerSecond: 50,
+            peakDownloadBytesPerSecond: 120,
+            peakUploadBytesPerSecond: 60,
+            sampleCount: 20,
+            downloadBytes: 2_000,
+            uploadBytes: 1_000
+        )
+        let second = TrafficMinuteRecord(
+            timestamp: minute,
+            averageDownloadBytesPerSecond: 300,
+            averageUploadBytesPerSecond: 150,
+            peakDownloadBytesPerSecond: 450,
+            peakUploadBytesPerSecond: 200,
+            sampleCount: 40,
+            downloadBytes: 12_000,
+            uploadBytes: 6_000
+        )
+
+        try await database.upsertAndPrune(first, now: minute)
+        try await database.upsertAndPrune(second, now: minute)
+        let records = try await database.records(
+            since: minute.addingTimeInterval(-1),
+            through: minute.addingTimeInterval(1)
+        )
+        let merged = try XCTUnwrap(records.first)
+
+        XCTAssertEqual(merged.sampleCount, 60)
+        XCTAssertEqual(merged.downloadBytes, 14_000)
+        XCTAssertEqual(merged.uploadBytes, 7_000)
+        XCTAssertEqual(merged.averageDownloadBytesPerSecond, 700.0 / 3.0, accuracy: 0.001)
+        XCTAssertEqual(merged.averageUploadBytesPerSecond, 350.0 / 3.0, accuracy: 0.001)
+        XCTAssertEqual(merged.peakDownloadBytesPerSecond, 450)
+        XCTAssertEqual(merged.peakUploadBytesPerSecond, 200)
+    }
+
+    @MainActor
+    func testHistoryRangeChangesStatisticsImmediatelyFromSevenDayCache() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let url = directory.appendingPathComponent("history.sqlite")
+        let database = try TrafficHistoryDatabase(url: url)
+        let now = Date.now
+        let recent = historyRecord(at: now.addingTimeInterval(-20 * 60))
+        let older = TrafficMinuteRecord(
+            timestamp: MinuteTrafficAccumulator.minuteStart(
+                for: now.addingTimeInterval(-2 * 60 * 60)
+            ),
+            averageDownloadBytesPerSecond: 2_048,
+            averageUploadBytesPerSecond: 1_024,
+            peakDownloadBytesPerSecond: 4_096,
+            peakUploadBytesPerSecond: 2_048,
+            sampleCount: 60,
+            downloadBytes: 122_880,
+            uploadBytes: 61_440
+        )
+        try await database.upsertAndPrune(recent, now: now)
+        try await database.upsertAndPrune(older, now: now)
+
+        let store = TrafficHistoryStore(databaseURL: url)
+        store.start(now: now)
+        for _ in 0..<100 where store.isLoading {
+            try await ContinuousClock().sleep(for: .milliseconds(10))
+        }
+        XCTAssertFalse(store.isLoading)
+
+        store.selectRange(.oneHour)
+        XCTAssertEqual(store.summary.downloadBytes, recent.downloadBytes)
+
+        store.selectRange(.sevenDays)
+        XCTAssertEqual(
+            store.summary.downloadBytes,
+            recent.downloadBytes + older.downloadBytes
+        )
+        XCTAssertEqual(store.summary.peakDownloadBytesPerSecond, 4_096)
+    }
+
     @MainActor
     func testPreferencesPersistAndDefaultToFullByteDisplay() throws {
         let defaults = try XCTUnwrap(UserDefaults(suiteName: "NetletTests.\(UUID())"))
@@ -249,5 +590,46 @@ final class NetletTests: XCTestCase {
         XCTAssertEqual(languageStore.language, .simplifiedChinese)
         XCTAssertEqual(languageStore[.download], "下载")
         XCTAssertEqual(defaults.stringArray(forKey: "AppleLanguages"), ["zh-Hans"])
+    }
+
+    private func historySnapshot(
+        at date: Date,
+        downloadRate: Double,
+        uploadRate: Double,
+        downloadBytes: UInt64,
+        uploadBytes: UInt64,
+        duration: TimeInterval
+    ) -> NetworkSpeedSnapshot {
+        NetworkSpeedSnapshot(
+            downloadBytesPerSecond: downloadRate,
+            uploadBytesPerSecond: uploadRate,
+            interfaceName: "en0",
+            state: .connected,
+            sampledAt: date,
+            isRateSampleValid: true,
+            downloadBytesDelta: downloadBytes,
+            uploadBytesDelta: uploadBytes,
+            sampleDuration: duration
+        )
+    }
+
+    private func historyRecord(at date: Date) -> TrafficMinuteRecord {
+        TrafficMinuteRecord(
+            timestamp: MinuteTrafficAccumulator.minuteStart(for: date),
+            averageDownloadBytesPerSecond: 1_024,
+            averageUploadBytesPerSecond: 512,
+            peakDownloadBytesPerSecond: 2_048,
+            peakUploadBytesPerSecond: 1_024,
+            sampleCount: 60,
+            downloadBytes: 61_440,
+            uploadBytes: 30_720
+        )
+    }
+
+    private func temporaryDirectory() -> URL {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("NetletTests-\(UUID())", isDirectory: true)
+        try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+        return url
     }
 }

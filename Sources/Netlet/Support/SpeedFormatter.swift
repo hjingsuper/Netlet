@@ -82,6 +82,18 @@ enum SpeedFormatter {
         }
     }
 
+    static func dataSize(bytes: UInt64) -> String {
+        let units = ["B", "KB", "MB", "GB", "TB"]
+        var value = Double(bytes)
+        var index = 0
+        while value >= 1_024, index < units.count - 1 {
+            value /= 1_024
+            index += 1
+        }
+        let decimals = index == 0 ? 0 : (value >= 100 ? 0 : 1)
+        return "\(String(format: "%.*f", decimals, value)) \(units[index])"
+    }
+
     private static func scale(
         value: Double,
         base: Double,

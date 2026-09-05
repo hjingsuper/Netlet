@@ -15,9 +15,14 @@ let package = Package(
         )
     ],
     targets: [
+        .systemLibrary(
+            name: "CSQLite",
+            path: "Sources/CSQLite"
+        ),
         .executableTarget(
             name: "Netlet",
             dependencies: [
+                "CSQLite",
                 .product(name: "Sparkle", package: "Sparkle")
             ],
             path: "Sources/Netlet"

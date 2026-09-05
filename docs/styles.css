@@ -175,6 +175,16 @@ img { max-width: 100%; }
 .interface-dot.active { background: var(--teal); box-shadow: 0 0 12px rgb(53 210 182 / 80%); }
 .interface-visual small { color: var(--muted); }
 
+.history-visual { position: relative; min-height: 200px; padding: 19px 20px 12px; border: 1px solid var(--line-strong); background: rgb(255 255 255 / 3%); overflow: hidden; }
+.history-toolbar { display: flex; align-items: center; gap: 15px; color: #8290a6; font-size: 11px; }
+.history-toolbar strong { margin-right: auto; color: #dce6f5; font-size: 13px; }
+.history-toolbar span:first-of-type { padding: 5px 9px; border-radius: 6px; color: white; background: var(--blue); }
+.history-values { margin-top: 15px; display: flex; gap: 18px; color: #8d9bb1; font: 600 11px ui-monospace, SFMono-Regular, Menlo, monospace; }
+.history-values span:first-child { color: var(--blue-bright); }
+.history-values span:nth-child(2) { color: var(--teal); }
+.history-visual svg { width: 100%; height: 112px; margin-top: 4px; overflow: visible; }
+.history-grid { fill: none; stroke: var(--line); stroke-width: 1; }
+
 .product { width: min(1360px, calc(100% - 40px)); margin: 0 auto; padding: 126px 74px; display: grid; grid-template-columns: .74fr 1.26fr; align-items: center; gap: 75px; color: var(--paper-ink); background: var(--paper); border-radius: 30px; box-shadow: 0 34px 100px rgb(0 0 0 / 20%); }
 .product .eyebrow { color: #1d6ee8; }
 .product-copy > p:last-child { color: var(--paper-muted); }
@@ -251,6 +261,7 @@ footer { width: min(1220px, calc(100% - 64px)); min-height: 130px; margin: 0 aut
   .section-heading h2, .product h2, .install h2, .local-first h2, .release-card h2 { font-size: 46px; }
   .feature-row { min-height: 0; padding: 52px 0; grid-template-columns: 1fr; gap: 36px; }
   .feature-units .feature-copy { grid-row: 1; }
+  .feature-history .feature-copy { grid-row: 1; }
   .unit-scale { gap: 8px; overflow: hidden; }
   .unit-scale span { min-width: 92px; padding: 12px 8px; font-size: 12px; }
   .interface-visual { justify-self: stretch; }

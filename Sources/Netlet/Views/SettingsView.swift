@@ -3,6 +3,7 @@ import SwiftUI
 struct SettingsView: View {
     let monitor: NetworkSpeedMonitor
     let preferences: PreferencesStore
+    let historyStore: TrafficHistoryStore
     let languageStore: LanguageStore
     let launchAtLoginManager: LaunchAtLoginManager
     let updateManager: UpdateManager
@@ -12,8 +13,13 @@ struct SettingsView: View {
             header
             Divider()
 
-            VStack(spacing: 14) {
+            VStack(spacing: 12) {
                 livePreview
+                TrafficHistoryView(
+                    historyStore: historyStore,
+                    preferences: preferences,
+                    languageStore: languageStore
+                )
                 preferencesPanel
             }
             .padding(.horizontal, 18)
@@ -24,10 +30,10 @@ struct SettingsView: View {
             settingsFooter
         }
         .frame(
-            minWidth: 760,
-            idealWidth: 820,
-            minHeight: 460,
-            idealHeight: 480
+            minWidth: 860,
+            idealWidth: 920,
+            minHeight: 700,
+            idealHeight: 720
         )
         .background(.regularMaterial)
         .onAppear { launchAtLoginManager.retryRegistration() }
@@ -83,7 +89,7 @@ struct SettingsView: View {
             .lineLimit(1)
         }
         .padding(.horizontal, 16)
-        .frame(maxWidth: .infinity, minHeight: 68)
+        .frame(maxWidth: .infinity, minHeight: 60)
         .background(Color.accentColor.opacity(0.055), in: RoundedRectangle(cornerRadius: 10))
         .overlay {
             RoundedRectangle(cornerRadius: 10)
@@ -233,7 +239,7 @@ struct SettingsView: View {
             content()
                 .frame(width: 380, alignment: .trailing)
         }
-        .frame(minHeight: 48)
+        .frame(minHeight: 40)
     }
 
     private func languageButton(_ language: AppLanguage, title: String) -> some View {
