@@ -37,6 +37,8 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     private let checkForUpdates: () -> Void
     private let menu = NSMenu()
     private var statusItem: NSStatusItem?
+    private static let statusFont = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
+    private static let statusHorizontalPadding: CGFloat = 10
     private let logger = Logger(
         subsystem: Bundle.main.bundleIdentifier ?? "com.hjingsuper.Netlet",
         category: "MenuBar"
@@ -47,6 +49,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     }
 
     func preferencesDidChange() {
+        updateStatusLayout()
         updateStatusTitle()
         rebuildMenu()
     }
@@ -68,12 +71,18 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
     private func installStatusItem() {
         guard statusItem == nil else { return }
-        let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        let item = NSStatusBar.system.statusItem(withLength: preferredStatusItemLength)
         item.autosaveName = "com.hjingsuper.Netlet.primary-status-item"
-        item.button?.font = NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .regular)
+        item.button?.font = Self.statusFont
+        item.button?.alignment = .center
         item.button?.image = nil
         item.button?.imagePosition = .noImage
-        item.button?.title = "↓ —  ↑ —"
+        item.button?.title = SpeedFormatter.stableStatusTitle(
+            snapshot: .initial,
+            style: preferences.menuDisplayStyle,
+            unitMode: preferences.speedUnitMode,
+            decimalPlaces: preferences.decimalPlaces
+        )
         item.button?.toolTip = "Netlet"
         item.menu = menu
         item.isVisible = true
@@ -85,7 +94,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
     private func updateStatusTitle() {
         guard let statusItem else { return }
-        statusItem.button?.title = SpeedFormatter.statusTitle(
+        statusItem.button?.title = SpeedFormatter.stableStatusTitle(
             snapshot: monitor.snapshot,
             style: preferences.menuDisplayStyle,
             unitMode: preferences.speedUnitMode,
@@ -94,6 +103,23 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         )
         statusItem.button?.toolTip = interfaceDescription
         statusItem.isVisible = true
+    }
+
+    private func updateStatusLayout() {
+        statusItem?.length = preferredStatusItemLength
+    }
+
+    private var preferredStatusItemLength: CGFloat {
+        let placeholder = SpeedFormatter.stableStatusTitle(
+            snapshot: .initial,
+            style: preferences.menuDisplayStyle,
+            unitMode: preferences.speedUnitMode,
+            decimalPlaces: preferences.decimalPlaces
+        )
+        let textWidth = (placeholder as NSString).size(
+            withAttributes: [.font: Self.statusFont]
+        ).width
+        return ceil(textWidth + Self.statusHorizontalPadding)
     }
 
     private var interfaceDescription: String {

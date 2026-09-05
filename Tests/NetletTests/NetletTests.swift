@@ -185,6 +185,58 @@ final class NetletTests: XCTestCase {
         )
     }
 
+    func testStableStatusTitleKeepsFixedSlotsAcrossValuesUnitsAndConnectivity() {
+        let lowRate = NetworkSpeedSnapshot(
+            downloadBytesPerSecond: 10_229,
+            uploadBytesPerSecond: 999,
+            interfaceName: "en0",
+            state: .connected,
+            sampledAt: .now
+        )
+        let highRate = NetworkSpeedSnapshot(
+            downloadBytesPerSecond: 1_572_864,
+            uploadBytesPerSecond: 131_072,
+            interfaceName: "en0",
+            state: .connected,
+            sampledAt: .now
+        )
+
+        for style in MenuDisplayStyle.allCases {
+            for unitMode in SpeedUnitMode.allCases {
+                for decimalPlaces in DecimalPlaces.allCases {
+                    let titles = [
+                        SpeedFormatter.stableStatusTitle(
+                            snapshot: lowRate,
+                            style: style,
+                            unitMode: unitMode,
+                            decimalPlaces: decimalPlaces,
+                            scalePair: SpeedScalePair(downloadIndex: 1, uploadIndex: 0)
+                        ),
+                        SpeedFormatter.stableStatusTitle(
+                            snapshot: highRate,
+                            style: style,
+                            unitMode: unitMode,
+                            decimalPlaces: decimalPlaces,
+                            scalePair: SpeedScalePair(downloadIndex: 2, uploadIndex: 1)
+                        ),
+                        SpeedFormatter.stableStatusTitle(
+                            snapshot: .initial,
+                            style: style,
+                            unitMode: unitMode,
+                            decimalPlaces: decimalPlaces
+                        )
+                    ]
+
+                    XCTAssertEqual(
+                        Set(titles.map(\.count)).count,
+                        1,
+                        "Status title width changed for \(style), \(unitMode), \(decimalPlaces)"
+                    )
+                }
+            }
+        }
+    }
+
     func testInterfaceSelectionRoundTrips() {
         XCTAssertEqual(InterfaceSelection(persistedValue: nil), .automatic)
         XCTAssertEqual(InterfaceSelection(persistedValue: "automatic"), .automatic)

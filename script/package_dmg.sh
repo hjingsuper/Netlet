@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_PATH="${1:-dist/Netlet.app}"
+APP_PATH="${1:-.build/netlet-bundle.noindex/Netlet.app}"
 OUTPUT_PATH="${2:-Netlet-Apple-Silicon.dmg}"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DMGBUILD_BIN="${DMGBUILD_BIN:-$(command -v dmgbuild || true)}"

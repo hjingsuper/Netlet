@@ -76,7 +76,7 @@ struct SettingsView: View {
             Spacer(minLength: 20)
 
             Text(
-                SpeedFormatter.statusTitle(
+                SpeedFormatter.stableStatusTitle(
                     snapshot: monitor.snapshot,
                     style: preferences.menuDisplayStyle,
                     unitMode: preferences.speedUnitMode,
@@ -84,8 +84,7 @@ struct SettingsView: View {
                     scalePair: monitor.scalePair(for: preferences.speedUnitMode)
                 )
             )
-            .font(.system(size: 18, weight: .medium, design: .rounded))
-            .monospacedDigit()
+            .font(.system(size: 18, weight: .medium, design: .monospaced))
             .lineLimit(1)
         }
         .padding(.horizontal, 16)

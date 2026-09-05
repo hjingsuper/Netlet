@@ -13,8 +13,8 @@ SPARKLE_FEED_URL="https://github.com/hjingsuper/Netlet/releases/latest/download/
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APP_VERSION="${NETLET_VERSION:-$(tr -d '[:space:]' < "$ROOT_DIR/VERSION")}"
 APP_BUILD="${NETLET_BUILD_NUMBER:-$(tr -d '[:space:]' < "$ROOT_DIR/BUILD_NUMBER")}"
-DIST_DIR="$ROOT_DIR/dist"
-APP_BUNDLE="$DIST_DIR/$APP_NAME.app"
+APP_STAGE_DIR="$ROOT_DIR/.build/netlet-bundle.noindex"
+APP_BUNDLE="$APP_STAGE_DIR/$APP_NAME.app"
 APP_CONTENTS="$APP_BUNDLE/Contents"
 APP_MACOS="$APP_CONTENTS/MacOS"
 APP_FRAMEWORKS="$APP_CONTENTS/Frameworks"
@@ -50,6 +50,11 @@ if [[ "$DISTRIBUTION_BUILD" == "1" ]]; then
 fi
 
 cd "$ROOT_DIR"
+
+# The .noindex staging directory keeps generated bundles out of Spotlight and
+# Launchpad search results, where they could otherwise appear beside the app
+# installed in /Applications.
+mkdir -p "$APP_STAGE_DIR"
 
 if [[ "$MODE" == "run" || "$MODE" == "--ui" || "$MODE" == "ui" || "$MODE" == "--menu" || "$MODE" == "menu" || "$MODE" == "--verify" || "$MODE" == "verify" ]]; then
   while IFS= read -r app_pid; do
