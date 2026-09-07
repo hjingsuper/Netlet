@@ -147,8 +147,8 @@ struct TrafficHistoryView: View {
         GeometryReader { geometry in
             let records = historyStore.visibleRecords
             let pointBudget = max(60, min(600, Int(geometry.size.width / 2.5)))
-            let segments = TrafficHistoryDownsampler.segments(
-                from: records,
+            let segments = historyStore.presentationSegments(
+                for: historyStore.selectedRange,
                 maximumPointCount: pointBudget
             )
 
@@ -177,7 +177,7 @@ struct TrafficHistoryView: View {
     }
 
     private func historyChart(segments: [[TrafficMinuteRecord]]) -> some View {
-        let now = Date.now
+        let now = historyStore.presentationDate
         let start = now.addingTimeInterval(-historyStore.selectedRange.duration)
         let maximum = max(
             1,
@@ -426,14 +426,14 @@ struct TrafficHistoryView: View {
     private var historyCoverageDescription: String {
         guard
             let firstTimestamp = historyStore
-                .recentRecords(for: .sevenDays)
+                .presentationRecords(for: .sevenDays)
                 .first?
                 .timestamp
         else {
             return languageStore[.historyRetentionDescription]
         }
 
-        let duration = max(60, Date.now.timeIntervalSince(firstTimestamp))
+        let duration = max(60, historyStore.presentationDate.timeIntervalSince(firstTimestamp))
         let value: Int
         let simplifiedChineseUnit: String
         let englishUnit: String

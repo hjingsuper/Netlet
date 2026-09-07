@@ -37,6 +37,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     private let checkForUpdates: () -> Void
     private let menu = NSMenu()
     private var statusItem: NSStatusItem?
+    private var menuIsOpen = false
     private static let statusFont = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
     private static let statusHorizontalPadding: CGFloat = 10
     private let logger = Logger(
@@ -58,7 +59,6 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         rebuildMenu()
     }
 
-#if DEBUG
     func showMenuForTesting() {
         guard let button = statusItem?.button else { return }
         menu.popUp(
@@ -67,7 +67,6 @@ final class StatusBarController: NSObject, NSMenuDelegate {
             in: button
         )
     }
-#endif
 
     private func installStatusItem() {
         guard statusItem == nil else { return }
@@ -94,15 +93,17 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
     private func updateStatusTitle() {
         guard let statusItem else { return }
-        statusItem.button?.title = SpeedFormatter.stableStatusTitle(
+        let title = SpeedFormatter.stableStatusTitle(
             snapshot: monitor.snapshot,
             style: preferences.menuDisplayStyle,
             unitMode: preferences.speedUnitMode,
             decimalPlaces: preferences.decimalPlaces,
             scalePair: monitor.scalePair(for: preferences.speedUnitMode)
         )
-        statusItem.button?.toolTip = interfaceDescription
-        statusItem.isVisible = true
+        if statusItem.button?.title != title { statusItem.button?.title = title }
+        let tooltip = interfaceDescription
+        if statusItem.button?.toolTip != tooltip { statusItem.button?.toolTip = tooltip }
+        if !statusItem.isVisible { statusItem.isVisible = true }
     }
 
     private func updateStatusLayout() {
@@ -135,24 +136,36 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         guard statusItem != nil else { return }
         menu.removeAllItems()
 
+        let speedItem = NSMenuItem()
+        speedItem.view = NSView(frame: NSRect(x: 0, y: 0,
+            width: SpeedMenuView.preferredWidth, height: SpeedMenuView.preferredHeight))
+        menu.addItem(speedItem)
+        if menuIsOpen { attachLiveMenuView() }
+        menu.addItem(.separator())
+
+        addMenuActions()
+    }
+
+    private func attachLiveMenuView() {
         let speedView = SpeedMenuView(
             monitor: monitor,
             preferences: preferences,
             historyStore: historyStore,
             languageStore: languageStore
         )
-        let speedItem = NSMenuItem()
         let hostingView = NSHostingView(rootView: speedView)
+        // This menu owns its fixed size; avoid repeated SwiftUI size probes.
+        hostingView.sizingOptions = []
         hostingView.frame = NSRect(
             x: 0,
             y: 0,
             width: SpeedMenuView.preferredWidth,
             height: SpeedMenuView.preferredHeight
         )
-        speedItem.view = hostingView
-        menu.addItem(speedItem)
-        menu.addItem(.separator())
+        menu.items.first?.view = hostingView
+    }
 
+    private func addMenuActions() {
         let settings = NSMenuItem(
             title: languageStore[.preferences],
             action: #selector(openPreferences),
@@ -190,7 +203,19 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     }
 
     func menuWillOpen(_ menu: NSMenu) {
+        menuIsOpen = true
+        historyStore.setPresentationActive(true, for: .menu)
+        attachLiveMenuView()
         updateStatusTitle()
+    }
+
+    func menuDidClose(_ menu: NSMenu) {
+        menuIsOpen = false
+        historyStore.setPresentationActive(false, for: .menu)
+        // Detach the entire hosting tree, not just its pixels. Hidden charts
+        // must not retain live Observation subscriptions between menu visits.
+        menu.items.first?.view = NSView(frame: NSRect(x: 0, y: 0,
+            width: SpeedMenuView.preferredWidth, height: SpeedMenuView.preferredHeight))
     }
 
     @objc private func openPreferences() {

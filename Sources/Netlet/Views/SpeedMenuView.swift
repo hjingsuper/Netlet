@@ -50,17 +50,84 @@ struct SpeedMenuView: View {
 
             Divider()
 
-            oneHourHistory
+            MenuHistoryView(historyStore: historyStore, languageStore: languageStore)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 8)
         .frame(width: Self.preferredWidth, height: Self.preferredHeight)
     }
 
-    private var oneHourHistory: some View {
-        let records = historyStore.recentRecords(for: .oneHour)
-        let segments = TrafficHistoryDownsampler.segments(
-            from: records,
+    private func speedColumn(
+        arrow: String,
+        label: String,
+        bytesPerSecond: Double,
+        scaleIndex: Int,
+        color: Color
+    ) -> some View {
+        let formatted = SpeedFormatter.valueAndUnit(
+            bytesPerSecond: bytesPerSecond,
+            unitMode: preferences.speedUnitMode,
+            decimalPlaces: preferences.decimalPlaces,
+            scaleIndex: scaleIndex
+        )
+
+        return VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 5) {
+                Text(arrow)
+                    .font(.headline.weight(.semibold))
+                    .foregroundStyle(color)
+                Text(label)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text(speedValue(formatted.value))
+                    .font(.system(size: 23, weight: .semibold, design: .rounded))
+                    .monospacedDigit()
+                    .lineLimit(1)
+                if monitor.snapshot.state == .connected {
+                    Text(formatted.unit)
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var connectionDescription: String {
+        guard let interfaceName = monitor.snapshot.interfaceName else {
+            return languageStore[.networkUnavailable]
+        }
+        let name = monitor.availableInterfaces
+            .first { $0.systemName == interfaceName }?.localizedName ?? interfaceName
+        return "\(languageStore[.currentConnection]) · \(name) (\(interfaceName))"
+    }
+
+    private var connectionColor: Color {
+        switch monitor.snapshot.state {
+        case .connected: .green
+        case .unavailable: .secondary
+        }
+    }
+
+    private func speedValue(_ connectedValue: String) -> String {
+        switch monitor.snapshot.state {
+        case .connected: connectedValue
+        case .unavailable: "—"
+        }
+    }
+}
+
+// A separate View creates a dependency boundary: live speed cannot invalidate the chart.
+private struct MenuHistoryView: View {
+    let historyStore: TrafficHistoryStore
+    let languageStore: LanguageStore
+    var body: some View {
+        let records = historyStore.presentationRecords(for: .oneHour)
+        let segments = historyStore.presentationSegments(
+            for: .oneHour,
             maximumPointCount: 120
         )
         let maximum = max(
@@ -132,7 +199,7 @@ struct SpeedMenuView: View {
                 .chartXAxis(.hidden)
                 .chartYAxis(.hidden)
                 .chartXScale(
-                    domain: Date.now.addingTimeInterval(-TrafficHistoryRange.oneHour.duration)...Date.now
+                    domain: historyStore.presentationDate.addingTimeInterval(-TrafficHistoryRange.oneHour.duration)...historyStore.presentationDate
                 )
                 .chartYScale(domain: 0...(maximum * 1.08))
                 .frame(height: 31)
@@ -151,65 +218,4 @@ struct SpeedMenuView: View {
         .foregroundStyle(.secondary)
     }
 
-    private func speedColumn(
-        arrow: String,
-        label: String,
-        bytesPerSecond: Double,
-        scaleIndex: Int,
-        color: Color
-    ) -> some View {
-        let formatted = SpeedFormatter.valueAndUnit(
-            bytesPerSecond: bytesPerSecond,
-            unitMode: preferences.speedUnitMode,
-            decimalPlaces: preferences.decimalPlaces,
-            scaleIndex: scaleIndex
-        )
-
-        return VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 5) {
-                Text(arrow)
-                    .font(.headline.weight(.semibold))
-                    .foregroundStyle(color)
-                Text(label)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            HStack(alignment: .firstTextBaseline, spacing: 4) {
-                Text(speedValue(formatted.value))
-                    .font(.system(size: 23, weight: .semibold, design: .rounded))
-                    .monospacedDigit()
-                    .lineLimit(1)
-                if monitor.snapshot.state == .connected {
-                    Text(formatted.unit)
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(.secondary)
-                }
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private var connectionDescription: String {
-        guard let interfaceName = monitor.snapshot.interfaceName else {
-            return languageStore[.networkUnavailable]
-        }
-        let name = monitor.availableInterfaces
-            .first { $0.systemName == interfaceName }?.localizedName ?? interfaceName
-        return "\(languageStore[.currentConnection]) · \(name) (\(interfaceName))"
-    }
-
-    private var connectionColor: Color {
-        switch monitor.snapshot.state {
-        case .connected: .green
-        case .unavailable: .secondary
-        }
-    }
-
-    private func speedValue(_ connectedValue: String) -> String {
-        switch monitor.snapshot.state {
-        case .connected: connectedValue
-        case .unavailable: "—"
-        }
-    }
 }

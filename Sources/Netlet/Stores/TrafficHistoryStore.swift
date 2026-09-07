@@ -5,8 +5,49 @@ import OSLog
 @MainActor
 @Observable
 final class TrafficHistoryStore {
-    private(set) var records: [TrafficMinuteRecord] = []
-    private(set) var liveRecord: TrafficMinuteRecord?
+    @ObservationIgnored private(set) var records: [TrafficMinuteRecord] = []
+    @ObservationIgnored private(set) var liveRecord: TrafficMinuteRecord?
+    private(set) var presentationDate = Date.now
+    enum PresentationConsumer: Hashable { case menu, settings }
+    @ObservationIgnored private var consumers: Set<PresentationConsumer> = []
+    @ObservationIgnored private var presentationCache: [TrafficHistoryRange: [TrafficMinuteRecord]] = [:]
+    @ObservationIgnored private var segmentCache: [String: [[TrafficMinuteRecord]]] = [:]
+
+    func setPresentationActive(_ active: Bool, for consumer: PresentationConsumer, now: Date = .now) {
+        if active { consumers.insert(consumer) } else { consumers.remove(consumer) }
+        if active { publishPresentation(now: now, force: true) }
+        if consumers.isEmpty {
+            presentationCache.removeAll()
+            segmentCache.removeAll()
+        }
+    }
+
+    private func publishPresentation(now: Date, force: Bool = false) {
+        guard force || (!consumers.isEmpty && abs(now.timeIntervalSince(presentationDate)) >= 5) else { return }
+        presentationCache.removeAll(keepingCapacity: true)
+        segmentCache.removeAll(keepingCapacity: true)
+        presentationDate = now
+    }
+
+    func presentationRecords(for range: TrafficHistoryRange) -> [TrafficMinuteRecord] {
+        let now = presentationDate // The only clock dependency of history UI.
+        if let cached = presentationCache[range] { return cached }
+        let result = recentRecords(for: range, now: now)
+        presentationCache[range] = result
+        return result
+    }
+
+    func presentationSegments(for range: TrafficHistoryRange, maximumPointCount: Int) -> [[TrafficMinuteRecord]] {
+        _ = presentationDate
+        let budget = max(1, min(600, maximumPointCount))
+        let key = "\(range)-\(budget)"
+        if let cached = segmentCache[key] { return cached }
+        let result = TrafficHistoryDownsampler.segments(from: presentationRecords(for: range), maximumPointCount: budget)
+        // Resizing must not create an unbounded cache of width-specific charts.
+        if segmentCache.count >= 4 { segmentCache.removeAll(keepingCapacity: true) }
+        segmentCache[key] = result
+        return result
+    }
     private(set) var selectedRange: TrafficHistoryRange = .oneHour
     private(set) var isLoading = false
     private(set) var isAvailable = true
@@ -29,6 +70,7 @@ final class TrafficHistoryStore {
     func ingest(_ snapshot: NetworkSpeedSnapshot) {
         let completed = accumulator.consume(snapshot)
         liveRecord = accumulator.currentRecord
+        publishPresentation(now: snapshot.sampledAt)
         guard let completed else { return }
         persist(completed, now: snapshot.sampledAt)
     }
@@ -36,12 +78,14 @@ final class TrafficHistoryStore {
     func selectRange(_ range: TrafficHistoryRange) {
         guard range != selectedRange else { return }
         selectedRange = range
+        publishPresentation(now: .now, force: true)
     }
 
     func clearHistory() {
         accumulator.reset()
         liveRecord = nil
         records = []
+        publishPresentation(now: .now, force: true)
         guard let database else { return }
 
         operationGeneration &+= 1
@@ -79,7 +123,7 @@ final class TrafficHistoryStore {
     }
 
     var visibleRecords: [TrafficMinuteRecord] {
-        recentRecords(for: selectedRange)
+        presentationRecords(for: selectedRange)
     }
 
     func recentRecords(
@@ -154,6 +198,7 @@ final class TrafficHistoryStore {
                 through: now
             )
             records = loaded
+            publishPresentation(now: .now, force: !consumers.isEmpty)
             isAvailable = true
         } catch {
             markUnavailable(error)
@@ -180,6 +225,7 @@ final class TrafficHistoryStore {
                     self?.operationGeneration == expectedGeneration
                 else { return }
                 self?.records = loaded
+                self?.publishPresentation(now: now, force: true)
                 self?.isLoading = false
                 self?.isAvailable = true
             } catch {

@@ -1,9 +1,28 @@
 import AppKit
 import OSLog
+import Observation
 import SwiftUI
 
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate {
+@Observable
+private final class SettingsVisibility {
+    var isVisible = true
+}
+
+private struct VisibleSettingsContent: View {
+    let visibility: SettingsVisibility
+    let content: SettingsView
+
+    var body: some View {
+        Group {
+            if visibility.isVisible { content } else { Color.clear }
+        }
+        .frame(minWidth: 860, minHeight: 700)
+    }
+}
+
+@MainActor
+final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private let logger = Logger(
         subsystem: Bundle.main.bundleIdentifier ?? "com.hjingsuper.Netlet",
         category: "Lifecycle"
@@ -16,6 +35,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var updateManager: UpdateManager?
     private var statusBarController: StatusBarController?
     private var windowController: NSWindowController?
+    private let settingsVisibility = SettingsVisibility()
     private var isFinishingTermination = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -74,12 +94,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if ProcessInfo.processInfo.environment["NETLET_UI_PREVIEW"] == "1" {
             showSettings()
         }
+#endif
         if CommandLine.arguments.contains("--show-menu") {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak statusBarController] in
                 statusBarController?.showMenuForTesting()
             }
         }
-#endif
         if CommandLine.arguments.contains("--show-settings") {
             showSettings()
         }
@@ -103,6 +123,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return .terminateLater
     }
 
+    func windowDidChangeOcclusionState(_ notification: Notification) {
+        guard let window = notification.object as? NSWindow,
+              window === windowController?.window else { return }
+        let visible = window.occlusionState.contains(.visible)
+        settingsVisibility.isVisible = visible
+        historyStore?.setPresentationActive(visible, for: .settings)
+    }
+
+    func windowWillClose(_ notification: Notification) {
+        guard let window = notification.object as? NSWindow,
+              window === windowController?.window else { return }
+        historyStore?.setPresentationActive(false, for: .settings)
+        settingsVisibility.isVisible = false
+        // Release the hosting tree after AppKit completes window teardown.
+        DispatchQueue.main.async { [weak self, weak window] in
+            guard let self, let window, !window.isVisible,
+                  self.windowController?.window === window else { return }
+            self.windowController = nil
+        }
+    }
+
     private func showSettings() {
         guard
             let monitor,
@@ -122,8 +163,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 launchAtLoginManager: launchAtLoginManager,
                 updateManager: updateManager
             )
-            let hostingController = NSHostingController(rootView: rootView)
+            let hostingController = NSHostingController(rootView: VisibleSettingsContent(
+                visibility: settingsVisibility, content: rootView))
             let window = NSWindow(contentViewController: hostingController)
+            window.delegate = self
             window.title = "Netlet"
             window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
             window.setContentSize(NSSize(width: 920, height: 720))
@@ -133,6 +176,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             windowController = NSWindowController(window: window)
         }
 
+        historyStore.setPresentationActive(true, for: .settings)
+        settingsVisibility.isVisible = true
         NSApp.activate(ignoringOtherApps: true)
         windowController?.showWindow(nil)
         windowController?.window?.makeKeyAndOrderFront(nil)

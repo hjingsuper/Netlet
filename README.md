@@ -7,7 +7,7 @@
 <p align="center"><strong>实时网速，一眼即知。</strong></p>
 
 <p align="center">
-  <img alt="version" src="https://img.shields.io/badge/version-v1.6-2f80ff">
+  <img alt="version" src="https://img.shields.io/badge/version-v1.7-2f80ff">
   <img alt="platform" src="https://img.shields.io/badge/platform-macOS%2014%2B-111827">
   <img alt="architecture" src="https://img.shields.io/badge/architecture-Apple%20Silicon-111827">
   <img alt="built with Swift" src="https://img.shields.io/badge/built%20with-Swift-f05138">
@@ -16,7 +16,7 @@
 
 <p align="center">
   <a href="https://hjingsuper.github.io/Netlet/">官方网站</a> ·
-  <a href="https://github.com/hjingsuper/Netlet/releases/download/v1.6/Netlet-v1.6-Apple-Silicon.dmg">下载 DMG</a> ·
+  <a href="https://github.com/hjingsuper/Netlet/releases/download/v1.7/Netlet-v1.7-Apple-Silicon.dmg">下载 DMG</a> ·
   <a href="https://github.com/hjingsuper/Netlet/releases">版本记录</a>
 </p>
 
@@ -38,7 +38,8 @@ Netlet 是一款纯本地、单功能的 macOS 菜单栏实时网速工具。它
 - 字节/秒与比特/秒单位，可选择 0–2 位小数
 - 单位自动换算，并通过切换迟滞避免在临界网速附近反复跳动
 - 自动识别主要网络接口，也可手动指定
-- 固定每秒刷新，兼顾及时性与后台功耗
+- 网速采集与实时数字固定每秒刷新；历史图表仅在可见时最多每 5 秒更新，打开或切换筛选立即更新
+- 菜单关闭后释放图表视图，历史数据处理使用有界缓存，减少长期运行开销
 - 最近 1 小时、24 小时和 7 天流量折线图；总量与峰值随筛选范围同步变化
 - 主界面折线图支持鼠标悬停，显示对应分钟的下载与上传平均速度
 - 菜单栏弹层读取同一份历史数据，并固定提供最近 1 小时的紧凑趋势

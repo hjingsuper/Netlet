@@ -14,7 +14,7 @@ struct SettingsView: View {
             Divider()
 
             VStack(spacing: 12) {
-                livePreview
+                LiveSpeedPreview(monitor: monitor, preferences: preferences, languageStore: languageStore)
                 TrafficHistoryView(
                     historyStore: historyStore,
                     preferences: preferences,
@@ -66,34 +66,6 @@ struct SettingsView: View {
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 14)
-    }
-
-    private var livePreview: some View {
-        HStack(spacing: 14) {
-            Label(languageStore[.appSubtitle], systemImage: "menubar.rectangle")
-                .font(.headline)
-
-            Spacer(minLength: 20)
-
-            Text(
-                SpeedFormatter.stableStatusTitle(
-                    snapshot: monitor.snapshot,
-                    style: preferences.menuDisplayStyle,
-                    unitMode: preferences.speedUnitMode,
-                    decimalPlaces: preferences.decimalPlaces,
-                    scalePair: monitor.scalePair(for: preferences.speedUnitMode)
-                )
-            )
-            .font(.system(size: 18, weight: .medium, design: .monospaced))
-            .lineLimit(1)
-        }
-        .padding(.horizontal, 16)
-        .frame(maxWidth: .infinity, minHeight: 60)
-        .background(Color.accentColor.opacity(0.055), in: RoundedRectangle(cornerRadius: 10))
-        .overlay {
-            RoundedRectangle(cornerRadius: 10)
-                .stroke(.separator.opacity(0.55), lineWidth: 1)
-        }
     }
 
     private var preferencesPanel: some View {
@@ -321,4 +293,38 @@ struct SettingsView: View {
         ) as? String else { return version }
         return "\(version) (\(build))"
     }
+}
+
+private struct LiveSpeedPreview: View {
+    let monitor: NetworkSpeedMonitor
+    let preferences: PreferencesStore
+    let languageStore: LanguageStore
+    var body: some View {
+        HStack(spacing: 14) {
+            Label(languageStore[.appSubtitle], systemImage: "menubar.rectangle")
+                .font(.headline)
+
+            Spacer(minLength: 20)
+
+            Text(
+                SpeedFormatter.stableStatusTitle(
+                    snapshot: monitor.snapshot,
+                    style: preferences.menuDisplayStyle,
+                    unitMode: preferences.speedUnitMode,
+                    decimalPlaces: preferences.decimalPlaces,
+                    scalePair: monitor.scalePair(for: preferences.speedUnitMode)
+                )
+            )
+            .font(.system(size: 18, weight: .medium, design: .monospaced))
+            .lineLimit(1)
+        }
+        .padding(.horizontal, 16)
+        .frame(maxWidth: .infinity, minHeight: 60)
+        .background(Color.accentColor.opacity(0.055), in: RoundedRectangle(cornerRadius: 10))
+        .overlay {
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(.separator.opacity(0.55), lineWidth: 1)
+        }
+    }
+
 }
