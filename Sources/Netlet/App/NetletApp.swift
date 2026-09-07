@@ -165,6 +165,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             )
             let hostingController = NSHostingController(rootView: VisibleSettingsContent(
                 visibility: settingsVisibility, content: rootView))
+            // AppKit owns the window bounds. In particular, do not probe the
+            // Chart hierarchy at zero/infinite sizes while visibility changes.
+            hostingController.sizingOptions = []
+            hostingController.view.frame = NSRect(x: 0, y: 0, width: 920, height: 720)
             let window = NSWindow(contentViewController: hostingController)
             window.delegate = self
             window.title = "Netlet"
