@@ -140,7 +140,7 @@ final class NetletTests: XCTestCase {
                 decimalPlaces: .one,
                 scalePair: SpeedScalePair(downloadIndex: 1, uploadIndex: 0)
             ),
-            "↓ 976.6 KB/s  ↑ 512.0 B/s"
+            "↓ 976.6 K  ↑ 512.0 B"
         )
     }
 
@@ -160,7 +160,7 @@ final class NetletTests: XCTestCase {
                 unitMode: .bytes,
                 decimalPlaces: .one
             ),
-            "↓ 1.5 MB/s  ↑ 128.0 KB/s"
+            "↓ 1.5 M  ↑ 128.0 K"
         )
         XCTAssertEqual(
             SpeedFormatter.statusTitle(
@@ -170,6 +170,35 @@ final class NetletTests: XCTestCase {
                 decimalPlaces: .one
             ),
             "↓1.5M  ↑128.0K"
+        )
+    }
+
+    func testMenuBarUsesTheSameSingleCharacterUnitsForBitsAndBytes() {
+        let snapshot = NetworkSpeedSnapshot(
+            downloadBytesPerSecond: 1_048_576,
+            uploadBytesPerSecond: 125_000,
+            interfaceName: "en0",
+            state: .connected,
+            sampledAt: .now
+        )
+
+        XCTAssertEqual(
+            SpeedFormatter.statusTitle(
+                snapshot: snapshot,
+                style: .full,
+                unitMode: .bytes,
+                decimalPlaces: .one
+            ),
+            "↓ 1.0 M  ↑ 122.1 K"
+        )
+        XCTAssertEqual(
+            SpeedFormatter.statusTitle(
+                snapshot: snapshot,
+                style: .full,
+                unitMode: .bits,
+                decimalPlaces: .one
+            ),
+            "↓ 8.4 M  ↑ 1.0 M"
         )
     }
 

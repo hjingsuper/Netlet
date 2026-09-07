@@ -1,14 +1,14 @@
 import Foundation
 
 enum SpeedFormatter {
-    private static let fullUnitWidth = 4
-    private static let compactUnitWidth = 2
+    private static let statusUnitWidth = 1
 
     static func valueAndUnit(
         bytesPerSecond: Double,
         unitMode: SpeedUnitMode,
         decimalPlaces: DecimalPlaces,
         compact: Bool = false,
+        menuBarUnit: Bool = false,
         scaleIndex: Int? = nil
     ) -> (value: String, unit: String) {
         let safeRate = bytesPerSecond.isFinite ? max(0, bytesPerSecond) : 0
@@ -20,14 +20,18 @@ enum SpeedFormatter {
             (scaled, unit) = scale(
                 value: safeRate,
                 base: 1_024,
-                units: compact ? ["B", "K", "M", "G"] : ["B/s", "KB/s", "MB/s", "GB/s"],
+                units: menuBarUnit
+                    ? ["B", "K", "M", "G"]
+                    : compact ? ["B", "K", "M", "G"] : ["B/s", "KB/s", "MB/s", "GB/s"],
                 scaleIndex: scaleIndex
             )
         case .bits:
             (scaled, unit) = scale(
                 value: safeRate * 8,
                 base: 1_000,
-                units: compact ? ["b", "Kb", "Mb", "Gb"] : ["bps", "Kbps", "Mbps", "Gbps"],
+                units: menuBarUnit
+                    ? ["B", "K", "M", "G"]
+                    : compact ? ["b", "Kb", "Mb", "Gb"] : ["bps", "Kbps", "Mbps", "Gbps"],
                 scaleIndex: scaleIndex
             )
         }
@@ -58,14 +62,14 @@ enum SpeedFormatter {
             bytesPerSecond: snapshot.downloadBytesPerSecond,
             unitMode: unitMode,
             decimalPlaces: decimalPlaces,
-            compact: compact,
+            menuBarUnit: true,
             scaleIndex: scalePair?.downloadIndex
         )
         let upload = valueAndUnit(
             bytesPerSecond: snapshot.uploadBytesPerSecond,
             unitMode: unitMode,
             decimalPlaces: decimalPlaces,
-            compact: compact,
+            menuBarUnit: true,
             scaleIndex: scalePair?.uploadIndex
         )
         let downloadText = compact
@@ -100,7 +104,7 @@ enum SpeedFormatter {
         let valueWidth = decimalPlaces.rawValue == 0
             ? 4
             : 5 + decimalPlaces.rawValue
-        let unitWidth = compact ? compactUnitWidth : fullUnitWidth
+        let unitWidth = statusUnitWidth
 
         let download: (value: String, unit: String)
         let upload: (value: String, unit: String)
@@ -109,14 +113,14 @@ enum SpeedFormatter {
                 bytesPerSecond: snapshot.downloadBytesPerSecond,
                 unitMode: unitMode,
                 decimalPlaces: decimalPlaces,
-                compact: compact,
+                menuBarUnit: true,
                 scaleIndex: scalePair?.downloadIndex
             )
             upload = valueAndUnit(
                 bytesPerSecond: snapshot.uploadBytesPerSecond,
                 unitMode: unitMode,
                 decimalPlaces: decimalPlaces,
-                compact: compact,
+                menuBarUnit: true,
                 scaleIndex: scalePair?.uploadIndex
             )
         } else {
